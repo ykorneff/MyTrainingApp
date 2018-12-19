@@ -1,0 +1,57 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <title>Simple webcamera test</title>
+        <link rel="stylesheet" href="app.css">
+        
+        <script src="../jquery.min.js"></script>
+        <script async src="00-selfCam.js"></script> <!--To make possible using values from fps selector in the script-->
+    </head>
+    <body>
+        <header id='header'><h3>Check your webcamera here</h3></header>
+        <nav>
+            <select name="Camera" id="cameraSelect" onchange="changeCamera()">
+                <!--
+                <option value="Cam1">Cam1</option>
+                <option value="Cam2">Cam2</option>
+                -->
+            </select> 
+            <select name="Resolution" id="resolutionSelect">
+                <option value="qvga">QVGA</option>
+                <option value="vga" selected>VGA</option>
+                <option value="hd" >HD</option>
+                <option value="fullhd">Full HD</option>
+            </select> 
+            <select name="FrameRate" id="frameRateSelect">
+                <option value=60.0>60 fps</option>
+                <option value=30.0>30 fps</option>
+                <option value=15.0>15 fps</option>
+                <option value=10.0>10 fps</option>
+                <option value=5.0>5 fps</option>
+                <option value=1.0>1 fps</option>
+            </select> 
+            <button id="applyConstraints" type="button" onclick="ApplyConstraints()" disabled>Apply</button><br>
+            <button id="startVideo" type="button" autofocus onclick="StartVideo()">Start</button> 
+            <button id="pauseVideo" type="button" disabled onclick="PauseVideo()">Pause</button>
+            <button id="stopVideo" type="button" onclick="StopVideo()" disabled>Stop</button> <br>
+            <button id="takeSnapshot" type="button" onclick="TakeSnapshot()">Take a snapshot</button> <!--<br>
+            Video recording: 
+            <button id="recStart" type="button" onclick="recStart()" disabled>Record</button>
+            <button id="recPause" type="button" onclick="recPause()" disabled>Pause</button>
+            <button id="recStop" type="button" onclick="recStop()" disabled>Stop and save</button>
+                -->
+        </nav>
+        <article>
+            <section id="mainSection">
+                <!--Main section-->                
+                <!--Video container-->
+                <p>Smile!</p><br>
+                <video id="selfVideo" muted="false" autoplay class="selfVideo"></video>
+            </section>
+            <section id="infoSection">
+                <textarea id="infoText" readonly rows="7" cols="80"></textarea>
+            </section>
+        </article>
+        <footer>Some info</footer>
+    </body>
+</html>
