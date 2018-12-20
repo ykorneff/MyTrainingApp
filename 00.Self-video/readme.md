@@ -8,7 +8,7 @@ jQuery.min.js v3.3.1
 Version: 0.18.12.18_alfa
 
 Application gets access to the local mediadevices (cameras and microphones) using WebRTC API.
-Realised features:
+Realized features:
 - Get device access
 - Switch camera resolution
 - Change fps
