@@ -4,3 +4,5 @@ I am just learning HTML and JS fundamentals and doing some exercises.
 Here is the list:
 
 00. Very basic HTML and JS. Gets access to the media devices (cameras and microphones).
+01. Simple video-chat for two with manusl signalisation (example from PluralSite cource).
+
