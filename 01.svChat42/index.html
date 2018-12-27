@@ -4,7 +4,9 @@
     <title>Simple video-chat for two persons with manual signaling</title>
     <link rel="stylesheet" href="app.css">
     <script src="../jquery.min.js"></script>
-    <script src="01-svChat42.js"></script>
+    <script src="../peer.min.js"></script>
+    <script src="../adapter-latest.js"></script>
+    <script async src="01-svChat42.js"></script>
 </head>
 <body>
     <header>
@@ -14,7 +16,18 @@
         </nav>
     </header>
     <article>
-
+        <section id="videoArea">
+            <label for="localVideo" >Local video:</label>
+            <video id="localVideo" muted="true" autoplay class="localVideo"></video>
+            <label for="remoteVideo">Remote Video</label>
+            <video id="remoteVideo" muted="false" autoplay class="remoteVideo"></video>
+        </section>
+        <section id="callControlArea">
+            <label for="localSessionId">Local session ID:</label> <input id="localSessionId" readonly> <br>
+            <label for="remoteSessionId">Remote session ID:</label> <input id="remoteSessionId"> <br>
+            <button id="startCall" type="button" onclick="startCall(document.getElementById('remoteSessionId').innerText)">Call</button>
+            <button id="endCall" type="button" onclick="endCall()">End call</button>
+        </section>
     </article>
     <footer>svChat42 started on 20.12.2018</footer>
 </body>
