@@ -6,15 +6,14 @@
     <script src="../jquery.min.js"></script>
     <script src="../peer.min.js"></script>
     <script src="../adapter-latest.js"></script>
+    <script src="myTools.js"></script>
     <script async src="01-svChat42.js"></script>
 </head>
 <body>
     <header>
         <h3>Look at your friend!</h3>
         <nav>
-                <button id="startButton">Start</button>
-                <button id="callButton">Call</button>
-                <button id="hangupButton">Hang Up</button>
+            <button id="initMedia" type="button" onclick="initLocalMedia(currentConstraints)">Initiate media</button>
         </nav>
     </header>
     <article>
