@@ -26,7 +26,7 @@
         <section id="callControlArea">
             <label for="localSessionId">Local session ID:</label> <input id="localSessionId" readonly> <br>
             <label for="remoteSessionId">Remote session ID:</label> <input id="remoteSessionId"> <br>
-            <button id="startCall" type="button" onclick="startCall(document.getElementById('remoteSessionId').innerText)">Call</button>
+            <button id="startCall" type="button" onclick="initCall(document.getElementById('remoteSessionId').innerText)">Call</button>
             <button id="endCall" type="button" onclick="endCall()">End call</button>
         </section>
     </article>

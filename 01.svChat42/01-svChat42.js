@@ -12,6 +12,11 @@ let currentConstraints = {
     video: true,
     audio: true
 };
+
+const offerOptions = {
+    offerToReceiveVideo: 1,
+}
+
 //Helpers:
 function getOppositPeer(peer){ //если на вход локальный - вернет удаленный Peer, и наоборот.
     if (peer === localPeer){
@@ -60,7 +65,7 @@ function connectionHandler(event){
 
     if (iceCandidate) {
         const newIceCandidate = new RTCIceCandidate(iceCandidate); //как я понимаю, мы создаем кандидата из самого себя, т.е. мы будем передавать поток сами себе. Для реальной передачи надо как-то создать реального кандидата.
-        const oppositePeer = getOtherPeer(peer);
+        const oppositePeer = getOppositPeer(peer);
 
         oppositePeer.addIceCandidate(newIceCandidate). 
         then(function(){
@@ -88,20 +93,84 @@ function gotRemoteMediaStream(event){
 
 }
 
+function setDescriptionSuccess(peer, functionName){
+    leveledTrace(`${getPeerName(peer)}: ${functionName} complete.`, 5);
+}
+
+function setLocalDescriptionSuccess(peer) {
+    setLocalDescriptionSuccess(peer, 'setLocalDescription');
+}
+
+function setSessionDescriptionError(error){
+    leveledTrace(`Failed to create session description: ${error.toString()}`, 1);
+}
+
+function createdAnswer(description){
+    console.log('@@@@01')
+    leveledTrace(`remotePeer answers`, 5);
+    leveledTrace(`Answer from remotePeer:\n${description.sdp}`, 7);
+
+    leveledTrace(`remotePeer starts setLocalDescription method`, 5);
+    remotePeer.setLocalDescription(description).
+    then(()=>{
+        console.log('@@@@02')
+        setDescriptionSuccess(remotePeer,'setLocalDescription');
+    }).
+    catch(setSessionDescriptionError);
+
+    console.log('@@@@03')
+    leveledTrace(`localPeer starts setLocalDescription method`, 5);
+    localPeer.setRemoteDescription(description).
+    then(()=>{
+        setDescriptionSuccess(localPeer,'setLocalDescription');
+        console.log('@@@@4')
+    }).
+    catch(setSessionDescriptionError);
+
+
+}
+
+function createdOffer(description){
+    
+    leveledTrace(`localPeer creates offer`, 5);
+    leveledTrace(`Offer from remotePeer:\n${description.sdp}`, 7);
+
+    leveledTrace(`localPeer starts setLocalDescription method:`,5);
+    localPeer.setLocalDescription(description).
+    then(()=>{
+        //setLocalDescriptionSuccess(localPeer);
+        setDescriptionSuccess(localPeer, 'setLocalDescription');
+    }).
+    catch (setSessionDescriptionError);
+    
+    leveledTrace(`remotePeer starts setLocalDescription method:`,5);
+    remotePeer.setRemoteDescription(description).
+    then(()=>{    
+        setDescriptionSuccess(remotePeer, 'setLocalDescription');
+    }).
+    catch (setSessionDescriptionError);
+    leveledTrace(`remotePeer starts createAnswer method`, 5);
+    remotePeer.createAnswer().
+    then(createdAnswer).
+    catch (setSessionDescriptionError);
+
+}
+
 function initCall(){
     leveledTrace('Starting a call', 5);
 
     const videoTracks = localStream.getVideoTracks();
     const audioTracks = localStream.getAudioTracks();
 
-    if (videoTracks.lenght>0) { 
+    if (videoTracks.length>0) { 
         leveledTrace(`Video device in use: ${videoTracks[0].label}`,5);
     } else {
         leveledTrace(`No video device detected`, 3);
+
     }
-    if (audioTracks.lenght>0) { 
+    if (audioTracks.length>0) { 
         leveledTrace(`Audio device in use: ${audioTracks[0].label}`,5);
-    } else {
+    } else {      
         leveledTrace(`No audio device detected`, 3);
     }
 
@@ -123,7 +192,18 @@ function initCall(){
     leveledTrace(`Local stream added to localPeer`, 7);
 
     leveledTrace(`Local peer creates offer.`, 5);
-
-    localPeer.createOffer(offerOptions)
+    localPeer.createOffer(offerOptions).
+    then(createdOffer).
+    catch(setSessionDescriptionError);
 
 }
+
+function endCall() {
+    localPeer.close();
+    remotePeer.close();
+    localPeer = null;
+    remotePeer = null;
+    //hangupButton.disabled = true;
+    //callButton.disabled = false;
+    leveledTrace('Call ended', 5);
+  }
