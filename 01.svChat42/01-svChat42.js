@@ -106,24 +106,20 @@ function setSessionDescriptionError(error){
 }
 
 function createdAnswer(description){
-    console.log('@@@@01')
     leveledTrace(`remotePeer answers`, 5);
     leveledTrace(`Answer from remotePeer:\n${description.sdp}`, 7);
 
     leveledTrace(`remotePeer starts setLocalDescription method`, 5);
     remotePeer.setLocalDescription(description).
     then(()=>{
-        console.log('@@@@02')
         setDescriptionSuccess(remotePeer,'setLocalDescription');
     }).
     catch(setSessionDescriptionError);
 
-    console.log('@@@@03')
     leveledTrace(`localPeer starts setLocalDescription method`, 5);
     localPeer.setRemoteDescription(description).
     then(()=>{
         setDescriptionSuccess(localPeer,'setLocalDescription');
-        console.log('@@@@4')
     }).
     catch(setSessionDescriptionError);
 
@@ -138,7 +134,6 @@ function createdOffer(description){
     leveledTrace(`localPeer starts setLocalDescription method:`,5);
     localPeer.setLocalDescription(description).
     then(()=>{
-        //setLocalDescriptionSuccess(localPeer);
         setDescriptionSuccess(localPeer, 'setLocalDescription');
     }).
     catch (setSessionDescriptionError);
