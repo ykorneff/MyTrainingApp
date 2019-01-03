@@ -29,6 +29,14 @@
             <button id="startCall" type="button" onclick="initCall(document.getElementById('remoteSessionId').innerText)">Call</button>
             <button id="endCall" type="button" onclick="endCall()">End call</button>
         </section>
+        <section id="chatArea">
+            <label for="localText">Type your message here:</label><br>
+            <textarea id="localText"></textarea><br>
+            <label for="remoteText">Received messages:</label><br>
+            <textarea id="remoteText"></textarea><br>
+            <button id="sendButton" type="button" onclick="sendInstantMessage()">Send</button>
+
+        </section>
     </article>
     <footer>svChat42 started on 20.12.2018</footer>
 </body>

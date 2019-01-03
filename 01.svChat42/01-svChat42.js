@@ -4,14 +4,23 @@ let traceLevel = 7;
 
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
+const sendButton = document.getElementById('sendButton');
+const dataChannelSend = document.getElementById('localText');
+const dataChannelReceive = document.getElementById('remoteText');
+
+
 
 let localStream;
 let remoteStream;
-
+let sendChannel;
+let receiveChannel;
 let currentConstraints = {
     video: true,
     audio: true
 };
+
+let pcConstraints = null;
+let dataConstraints = null;
 
 const offerOptions = {
     offerToReceiveVideo: 1,
@@ -171,17 +180,25 @@ function initCall(){
 
     const localPeerConfiguration = null;
 
-    localPeer = new RTCPeerConnection(localPeerConfiguration);
+    
+    localPeer = new RTCPeerConnection(localPeerConfiguration,pcConstraints);
     leveledTrace('Local peer created. Object: localPeer', 5);
     //leveledTrace(`Peer settings:`,7); //подумать
+    leveledTrace('Using SCTP based data channels',5);
+    sendChannel = localPeer.createDataChannel('sendDataChannel', dataConstraints);
+    leveledTrace('Send data channel created.',5);
+    leveledTrace(`Send data channel ID: ${sendChannel.id}`, 7);
     localPeer.addEventListener('icecandidate', connectionHandler);
     localPeer.addEventListener('iceconnectionstatechange', connectionChangeHandler);
+    sendChannel.addEventListener('open', onSendChannelStateChange);
+    sendChannel.addEventListener('close', onSendChannelStateChange);
 
-    remotePeer = new RTCPeerConnection(null);
+    remotePeer = new RTCPeerConnection(null,pcConstraints);
     leveledTrace('Remote peer created. Object: remotePeer', 5);
     remotePeer.addEventListener('icecandidate', connectionHandler);
     remotePeer.addEventListener('iceconnectionstatechange', connectionChangeHandler);
     remotePeer.addEventListener('addstream', gotRemoteMediaStream);
+    remotePeer.addEventListener('datachannel', receiveChannelCallback);
 
     localPeer.addStream(localStream);
     leveledTrace(`Local stream added to localPeer`, 7);
@@ -191,9 +208,51 @@ function initCall(){
     then(createdOffer).
     catch(setSessionDescriptionError);
 
+    leveledTrace('Data connection initialization complete', 5);
+
+}
+
+
+function onSendChannelStateChange(){
+    let readyState = sendChannel.readyState;
+    leveledTrace(`Send channel state is: ${readyState}`, 5);
+    if (readyState==='open') {
+        dataChannelSend.focus();
+
+    } else{
+        dataChannelSend.disabled=true;
+    }
+}
+
+function receiveChannelCallback(event){
+    leveledTrace('Received channel callback',5);
+    receiveChannel = event.channel;
+    receiveChannel.addEventListener('message', onReceiveMessageCallback);
+    receiveChannel.addEventListener('open', onReceiveChannelStateChange);
+    receiveChannel.addEventListener('close', onReceiveChannelStateChange);
+
+}
+
+function onReceiveMessageCallback(event){
+    leveledTrace('Message received', 5);
+    leveledTrace(`Received message: ${event.data}`,7);
+    dataChannelReceive.value = event.data;
+}
+
+function onReceiveChannelStateChange(){
+    leveledTrace(`Receive channel state is: ${receiveChannel.readyState}`);
+}
+
+function sendInstantMessage() {
+    let data = dataChannelSend.value;
+    sendChannel.send(data);
+    leveledTrace('Message sent.', 5);
+    leveledTrace(`Sent message: ${data}`, 7);
 }
 
 function endCall() {
+    sendChannel.close();
+    receiveChannel.close();
     localPeer.close();
     remotePeer.close();
     localPeer = null;
