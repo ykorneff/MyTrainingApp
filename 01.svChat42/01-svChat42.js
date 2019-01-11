@@ -9,7 +9,7 @@ const dataChannelSend = document.getElementById('localText');
 const dataChannelReceive = document.getElementById('remoteText');
 
 
-
+let localPeer = new RTCPeerConnection(null);
 let localStream;
 let remoteStream;
 let sendChannel;
@@ -18,8 +18,131 @@ let currentConstraints = {
     video: true,
     audio: true
 };
-
+let isStarted;
+let isChannelReady;
+let isInitiator;
 let pcConstraints = null;
+/*
+let pcConstraints = {
+    'iceServers': [{
+        'urls': 'stun:stun.l.google.com:19302'
+    }]
+};
+*/
+let room = 'svc42';
+let socket = io.connect();
+
+if (room!=''){
+    socket.emit('create or join', room);
+    leveledTrace(`Attempted to create or join room ${room}`, 5);
+}
+
+socket.on('created', (room)=>{
+    leveledTrace(`Room ${room} created`);
+    isInitiator = true;
+});
+
+socket.on('full', (room) => {
+    leveledTrace(`Room ${room} is full`, 3);
+});
+
+socket.on('log', (array)=> {
+    console.log.apply(console, array); //Переделать на leveldTrace!!!
+});
+
+
+
+function sendMessage(message) {
+    leveledTrace(`Client is sending a message.`,7);
+    socket.emit('message', message);
+    leveledTrace(`Message sent`,5);
+    leveledTrace(`Message: ${message}`,7);
+}
+
+function doAnswer(){
+    leveledTrace('Sending answer to peer',5);
+    localPeer.createAnswer().
+    then((sessionDescription)=>{
+        localPeer.setLocalDescription(sessionDescription);
+        leveledTrace('Sending description',5);
+        leveledTrace(`Session description: ${sessionDescription}`,7);
+        sendMessage(sessionDescription);  
+    }).
+    catch(setSessionDescriptionError);
+}
+
+socket.on('message', function(message) {
+    leveledTrace('Message received', 5);
+    leveledTrace(`Message: ${message}`, 7);
+    if (message === 'got user media') {
+        maybeStart();
+    } else if (message.type === 'offer') {
+        if (!isInitiator && !isStarted) {
+            maybeStart();
+        }
+        localPeer.setRemoteDescription(new RTCSessionDescription(message));
+        doAnswer();
+
+    } else if (message.type==='answer' && isStarted){
+        localPeer.setRemoteDescription(new RTCSessionDescription(message));
+    } else if (message.type === 'candidate' && isStarted) {
+        var candidate = new RTCIceCandidate({
+            sdpMLineIndex: message.label,
+            candidate: message.candidate
+        });
+        localPeer.addIceCandidate(candidate);
+    } else if (message==='bye'&& isStarted){
+        remoteHangupHandler();
+    }
+});
+
+
+function gotStream(){
+    sendMessage('got user media');
+    if (isInitiator) {
+        maybeStart();
+    }
+}
+
+/*
+if (location.hostname !== 'localhost') {
+    requestTurn('https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913');
+}
+*/
+
+function maybeStart(){
+    leveledTrace('Start attempt', 5);
+    leveledTrace(`isStarted = ${isStarted}\nlocalStream = ${localStream}\nisChannelReady = ${isChannelReady}`);
+    if(!isStarted && typeof localStream !== 'undefined' && isChannelReady) {
+        leveledTrace('Creating peer connection',5);
+        createPeerConnection();
+        //localPeer.addStream(localStream);
+        isStarted = true;
+        leveledTrace(`isInitiator: ${isInitiator}`);
+        if (isInitiator) {
+            doCall();
+        }
+    }
+}
+
+
+window.onbeforeunload = function() {
+    sendMessage('bye');
+}
+
+
+function createPeerConnection(){
+    //localPeer = new RTCPeerConnection(null);
+    //localPeer.addEventListener('icecandidate')
+    initCall()
+}
+
+
+let sdpConstraints = {
+    offerToReceiveVideo: true,
+    offerToReceiveAudio: true
+};
+
 let dataConstraints = null;
 
 const offerOptions = {
@@ -39,9 +162,6 @@ function getOppositPeer(peer){ //если на вход локальный - в�
 function getPeerName(peer){
     return (peer===localPeer)?'remotePeer':'localPeer'; //конструкция аналогична if-else в фунуции getOppositePeer()
 }
-
-
-
 
 //Main functions:
 function initLocalMedia(constraints) {
@@ -69,13 +189,21 @@ function connectionHandlerFail(peer, error){
 }
 
 function connectionHandler(event){
-    const peer = event.target; //event.target содержит ссылку на объект который этот event породил. Т.е. мы получаем так ссылку на peer
+    //const peer = event.target; //event.target содержит ссылку на объект который этот event породил. Т.е. мы получаем так ссылку на peer
     const iceCandidate = event.candidate; //returns the RTCIceCandidate associated with the event
-
+    leveledTrace(`icecandidate event:`, 5);
+    leveledTrace(`${event}`,7);
     if (iceCandidate) {
-        const newIceCandidate = new RTCIceCandidate(iceCandidate); //как я понимаю, мы создаем кандидата из самого себя, т.е. мы будем передавать поток сами себе. Для реальной передачи надо как-то создать реального кандидата.
-        const oppositePeer = getOppositPeer(peer);
-
+        sendMessage({
+            type: 'candidate',
+            label: iceCandidate.sdpMLineIndex,
+            id: iceCandidate.sdpMid,
+            candidate: iceCandidate.candidate
+        });
+        //убираем это т.к. тут реальное установление соединения
+        //const newIceCandidate = new RTCIceCandidate(iceCandidate); //как я понимаю, мы создаем кандидата из самого себя, т.е. мы будем передавать поток сами себе. Для реальной передачи надо как-то создать реального кандидата.
+        //const oppositePeer = getOppositPeer(peer);
+        /*
         oppositePeer.addIceCandidate(newIceCandidate). 
         then(function(){
             connectionHandlerSuccess(peer);
@@ -83,9 +211,13 @@ function connectionHandler(event){
         catch(function(error){
             connectionHandlerFail(peer,error);
         });
+        */
 
-        leveledTrace(`${getPeerName(peer)} ICE candidate:\n${event.candidate.candidate}`,7);
+        leveledTrace(`${getPeerName(localPeer)} ICE candidate:\n${event.candidate.candidate}`,7);
+    } else {
+        leveledTrace('End of candidates.',5);
     }
+
 }
 
 function connectionChangeHandler(event){
@@ -117,14 +249,14 @@ function setSessionDescriptionError(error){
 function createdAnswer(description){
     leveledTrace(`remotePeer answers`, 5);
     leveledTrace(`Answer from remotePeer:\n${description.sdp}`, 7);
-
+/*
     leveledTrace(`remotePeer starts setLocalDescription method`, 5);
     remotePeer.setLocalDescription(description).
     then(()=>{
         setDescriptionSuccess(remotePeer,'setLocalDescription');
     }).
     catch(setSessionDescriptionError);
-
+*/
     leveledTrace(`localPeer starts setLocalDescription method`, 5);
     localPeer.setRemoteDescription(description).
     then(()=>{
@@ -146,7 +278,7 @@ function createdOffer(description){
         setDescriptionSuccess(localPeer, 'setLocalDescription');
     }).
     catch (setSessionDescriptionError);
-    
+    /*
     leveledTrace(`remotePeer starts setLocalDescription method:`,5);
     remotePeer.setRemoteDescription(description).
     then(()=>{    
@@ -157,7 +289,19 @@ function createdOffer(description){
     remotePeer.createAnswer().
     then(createdAnswer).
     catch (setSessionDescriptionError);
+*/
+}
 
+function remoteStreamAddHandler(event){ //обработка события при появлении удаленного потока 
+    leveledTrace('Remote stream added', 5);
+    remoteStream = event.stream;
+    console.log(`###${remoteStream.description}`);
+    remoteVideo.srcObject = remoteStream;
+}
+
+function remoteStreamRemoveHandler(event){
+    leveledTrace('Remote stream has been removed',5);
+    leveledTrace(`Event: ${event}`);
 }
 
 function initCall(){
@@ -180,32 +324,50 @@ function initCall(){
 
     const localPeerConfiguration = null;
 
+    try {
+        localPeer = new RTCPeerConnection(localPeerConfiguration,pcConstraints);
+        leveledTrace('Local peer created. Object: localPeer', 5);
+        //leveledTrace(`Peer settings:`,7); //подумать
+        leveledTrace('Using SCTP based data channels',5);
+        sendChannel = localPeer.createDataChannel('sendDataChannel', dataConstraints);
+        leveledTrace('Send data channel created.',5);
+        leveledTrace(`Send data channel ID: ${sendChannel.id}`, 7);
+        localPeer.addEventListener('icecandidate', connectionHandler);
+        //localPeer.addEventListener('iceconnectionstatechange', connectionChangeHandler);
+        localPeer.addEventListener('addstream', remoteStreamAddHandler);
+        //localPeer.addEventListener('addtrack', remoteStreamAddHandler);
+        localPeer.addEventListener('removestream', remoteStreamRemoveHandler);
+        sendChannel.addEventListener('open', onSendChannelStateChange);
+        sendChannel.addEventListener('close', onSendChannelStateChange);
     
-    localPeer = new RTCPeerConnection(localPeerConfiguration,pcConstraints);
-    leveledTrace('Local peer created. Object: localPeer', 5);
-    //leveledTrace(`Peer settings:`,7); //подумать
-    leveledTrace('Using SCTP based data channels',5);
-    sendChannel = localPeer.createDataChannel('sendDataChannel', dataConstraints);
-    leveledTrace('Send data channel created.',5);
-    leveledTrace(`Send data channel ID: ${sendChannel.id}`, 7);
-    localPeer.addEventListener('icecandidate', connectionHandler);
-    localPeer.addEventListener('iceconnectionstatechange', connectionChangeHandler);
-    sendChannel.addEventListener('open', onSendChannelStateChange);
-    sendChannel.addEventListener('close', onSendChannelStateChange);
+    }
+    catch(err) {
+        leveledTrace(`Failed to create Peer, exception: ${err.message}`);
+        return;
+    }
 
+    //все. у нас теперь только один peer.
+    /*
     remotePeer = new RTCPeerConnection(null,pcConstraints);
     leveledTrace('Remote peer created. Object: remotePeer', 5);
     remotePeer.addEventListener('icecandidate', connectionHandler);
     remotePeer.addEventListener('iceconnectionstatechange', connectionChangeHandler);
     remotePeer.addEventListener('addstream', gotRemoteMediaStream);
     remotePeer.addEventListener('datachannel', receiveChannelCallback);
+    */
 
     localPeer.addStream(localStream);
     leveledTrace(`Local stream added to localPeer`, 7);
 
     leveledTrace(`Local peer creates offer.`, 5);
-    localPeer.createOffer(offerOptions).
-    then(createdOffer).
+    localPeer.createOffer(sdpConstraints).
+    then((sessionDescription)=>{
+        localPeer.setLocalDescription(sessionDescription);
+        leveledTrace('Sending description',5);
+        leveledTrace(`Session description: ${sessionDescription}`,7);
+        sendMessage(sessionDescription);
+    
+    }).
     catch(setSessionDescriptionError);
 
     leveledTrace('Data connection initialization complete', 5);
@@ -260,4 +422,4 @@ function endCall() {
     //hangupButton.disabled = true;
     //callButton.disabled = false;
     leveledTrace('Call ended', 5);
-  }
+}
