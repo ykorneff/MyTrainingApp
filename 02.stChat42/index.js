@@ -1,4 +1,11 @@
-let app = require('express')();
+//import './app.css';
+
+let path = require('path');
+let express = require('express');
+
+let app= express();
+app.use(express.static(path.join(__dirname, 'public')));
+//let app = require('express')();
 let http = require('http').Server(app);
 let io = require('socket.io')(http);
 
